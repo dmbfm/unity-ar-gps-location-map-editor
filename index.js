@@ -25,12 +25,15 @@ let movementSmoothingInputEl;
 let maxNumberOfLocationUpdatesEl;
 let useMovingAverageInputEl;
 let hideObjectUtilItIsPlacedEl;
+let meshIdInputEl;
 let markers = [];
 
 
-// TODO: Drag selected marker and change lat/lng
-// TODO: Separate into datasets
-// TODO: Add users/backend
+// TODO: Style using some UI framework? Map on right, and a menu bar on the left.
+// TODO: Separate into datasets.
+// TODO: Add users/backend.
+// TODO: MeshID Autocomplete.
+// TODO: Button to focus map to selected item.
 
 function pipeInputToSelectedPointData(el, propName, targetPropName = 'value') {
 	el.addEventListener('input', e => {
@@ -78,6 +81,7 @@ function main() {
 	maxNumberOfLocationUpdatesEl = getElementById("max-number-location-updates-input");
 	useMovingAverageInputEl = getElementById("use-moving-average-input");
 	hideObjectUtilItIsPlacedEl = getElementById("hide-object-until-placed-input");
+	meshIdInputEl = getElementById("mesh-id-input");
 
 	removeMarkerButton = getElementById("remove-marker-button");
 	removeAllMarkersButton = getElementById("clear-all-button");
@@ -100,13 +104,35 @@ function main() {
 		zoom: mapZoom // starting zoom
 	});
 
-	selectetMarker = new mapboxgl.Marker({ color: 'green '})
+	selectetMarker = new mapboxgl.Marker({ color: 'green ', draggable: true })
 		.setLngLat([0, 0])
 		.addTo(map);
 	selectetMarker.getElement().style.zIndex = 1000;
 	selectetMarker.getElement().addEventListener('click', e => {
 			e.preventDefault();
 			e.stopPropagation();
+		});
+
+	selectetMarker.on('dragstart', () => {
+		let data = selectedPointdata;
+		let marker = getMarkerById(data.id);
+		hideMarker(marker.marker);
+	})
+
+	selectetMarker.on('dragend', () => {
+			let data = selectedPointdata;
+			let marker = getMarkerById(data.id);
+			var lngLat = selectetMarker.getLngLat();
+			data.location = [lngLat.lng, lngLat.lat];
+
+			marker.marker.setLngLat(lngLat);
+
+			latValueEl.innerText = data.location[0];
+			lngValueEl.innerText = data.location[1];
+
+			unhideMarker(marker.marker);
+
+			renderPointsList();
 		});
 
 	hideMarker(selectetMarker);
@@ -132,9 +158,10 @@ function main() {
 
 
 	addMarkerButton.addEventListener('click', () => {
-		let marker = new mapboxgl.Marker()
+		let marker = new mapboxgl.Marker({ draggable: true })
 			.setLngLat(currentPointLatLng)
 			.addTo(map);
+
 
 		let id = dataIdCounter;
 		marker.getElement().addEventListener('click', e => {
@@ -155,6 +182,7 @@ function main() {
 			altitude: altitudeEl.value,
 			altitudeMode: altitudeModeEl.value,
 			name: nameInputEl.value,
+			meshId: meshIdInputEl.value,
 			movementSmoothing: movementSmoothingInputEl.value,
 			maxNumberOfLocationUpdates: maxNumberOfLocationUpdatesEl.value,
 			useMovingAverage: useMovingAverageInputEl.checked,
@@ -167,6 +195,14 @@ function main() {
 
 		selectPoint(id);
 		removeTempMarker();
+
+		marker.on('dragend', () => {
+			let data = getDataEntryById(id);
+			var lngLat = marker.getLngLat();
+			data.location = [lngLat.lng, lngLat.lat];
+
+			renderPointsList();
+		});
 
 		console.log(appData);
 	});
@@ -204,6 +240,7 @@ function main() {
 	});
 
 	pipeInputToSelectedPointData(nameInputEl, 'name');
+	pipeInputToSelectedPointData(meshIdInputEl, 'meshId');
 	pipeInputToSelectedPointData(altitudeEl, 'altitude');
 	pipeInputToSelectedPointData(movementSmoothingInputEl, 'movementSmoothing');
 	pipeInputToSelectedPointData(altitudeModeEl, 'altitudeMode');
@@ -234,6 +271,7 @@ function renderPointsList() {
 
 const dataDefault = {
 	name: "",
+	meshId: "",
 	altitude: 0,
 	movementSmoothing: 0.05,
 	altitudeMode: "GroundRelative",
@@ -259,6 +297,7 @@ function selectPoint(id) {
 		maxNumberOfLocationUpdatesEl.value = dataDefault.maxNumberOfLocationUpdates;
 		useMovingAverageInputEl.checked = dataDefault.useMovingAverage;
 		hideObjectUtilItIsPlacedEl.checked = dataDefault.hideObjectUtilItIsPlaced;
+		meshIdInputEl.value = dataDefault.meshId;
 
 		addMarkerButton.disabled = false;
 		removeMarkerButton.disabled = true;
@@ -278,6 +317,7 @@ function selectPoint(id) {
 		maxNumberOfLocationUpdatesEl.value = data.maxNumberOfLocationUpdates;
 		useMovingAverageInputEl.checked = data.useMovingAverage;
 		hideObjectUtilItIsPlacedEl.checked = data.hideObjectUtilItIsPlaced;
+		meshIdInputEl.value = data.meshId;
 
 		addMarkerButton.disabled = true;
 		removeMarkerButton.disabled = false;
@@ -297,9 +337,21 @@ function selectPoint(id) {
 function addTempMarkerAt(loc) {
 	removeTempMarker();
 
-	tempMarker = new  mapboxgl.Marker({ color: 'red' })
+	tempMarker = new  mapboxgl.Marker({ color: 'red', draggable: true })
 			.setLngLat(loc)
 			.addTo(map);
+
+	tempMarker.on('dragend', () => {
+			let lngLat = tempMarker.getLngLat();
+			let location = [lngLat.lng, lngLat.lat];
+
+			latValueEl.innerText = location[0];
+			lngValueEl.innerText = location[1];
+
+			currentPointLatLng = [location[0], location[1]];
+		});
+
+
 }
 
 function removeTempMarker() {
@@ -318,11 +370,11 @@ function getMarkerById(id) {
 }
 
 function hideMarker(marker) {
-	selectetMarker.getElement().style.visibility = "hidden";
+	marker.getElement().style.visibility = "hidden";
 }
 
 function unhideMarker(marker) {
-	selectetMarker.getElement().style.visibility = "visible";
+	marker.getElement().style.visibility = "visible";
 }
 
 function getArrayEntryById(arr, id) {
