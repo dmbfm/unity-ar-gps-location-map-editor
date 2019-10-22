@@ -6,6 +6,7 @@ let currentPointLatLng = [0, 0];
 let appData = [];
 
 let selectedPointId = -1;
+let selectedPointdata;
 let pointsList;
 let nameInputEl;
 let lngValueEl;
@@ -18,7 +19,34 @@ let tempMarker;
 let selectetMarker;
 let idLabelEl;
 let altitudeEl;
+let altitudeModeEl;
+let removeAllMarkersButton;
+let movementSmoothingInputEl;
+let maxNumberOfLocationUpdatesEl;
+let useMovingAverageInputEl;
+let hideObjectUtilItIsPlacedEl;
 let markers = [];
+
+
+// TODO: Drag selected marker and change lat/lng
+// TODO: Separate into datasets
+// TODO: Add users/backend
+
+function pipeInputToSelectedPointData(el, propName, targetPropName = 'value') {
+	el.addEventListener('input', e => {
+		if (!selectedPointdata) {
+			return;
+		}
+
+		if (selectedPointdata[propName] == undefined) {
+			throw new Error("[pipeInputToSelectedPointData] Invalid propName: " + propName);
+		}
+
+		selectedPointdata[propName] = e.target[targetPropName];
+		renderPointsList();
+	})
+}
+
 
 function getElementById(id) {
 	const el = document.getElementById(id);
@@ -45,10 +73,17 @@ function main() {
 	pointsList = getElementById("points-list");
 	nameInputEl = getElementById("name-input");
 	altitudeEl = getElementById("altitude-input");
+	altitudeModeEl = getElementById("altitude-mode-input");
+	movementSmoothingInputEl = getElementById("movement-smoothing-input");
+	maxNumberOfLocationUpdatesEl = getElementById("max-number-location-updates-input");
+	useMovingAverageInputEl = getElementById("use-moving-average-input");
+	hideObjectUtilItIsPlacedEl = getElementById("hide-object-until-placed-input");
 
 	removeMarkerButton = getElementById("remove-marker-button");
+	removeAllMarkersButton = getElementById("clear-all-button");
 	downloadJsonButton = getElementById("download-json-button");
 	removeMarkerButton.disabled = true;
+
 	//document.body.appendChild(mapDivContainer);
 
 	if (!window['mapboxgl'])
@@ -90,7 +125,8 @@ function main() {
 		latValueEl.innerText = currentPointLatLng[0];
 		lngValueEl.innerText = currentPointLatLng[1];
 
-		selectedPointId >= 0 && selectPoint(-1);
+		selectedPointdata && selectPoint(-1);
+	
 		addTempMarkerAt(currentPointLatLng);
 	});
 
@@ -114,10 +150,15 @@ function main() {
 		});
 
 		appData.push({
+			id,
 			location: [currentPointLatLng[0], currentPointLatLng[1]],
 			altitude: altitudeEl.value,
+			altitudeMode: altitudeModeEl.value,
 			name: nameInputEl.value,
-			id
+			movementSmoothing: movementSmoothingInputEl.value,
+			maxNumberOfLocationUpdates: maxNumberOfLocationUpdatesEl.value,
+			useMovingAverage: useMovingAverageInputEl.checked,
+			hideObjectUtilItIsPlaced: hideObjectUtilItIsPlacedEl.checked
 		});
 		dataIdCounter++;
 
@@ -129,26 +170,6 @@ function main() {
 
 		console.log(appData);
 	});
-
-	nameInputEl.addEventListener('input', e => {
-		if (selectedPointId < 0) {
-			return;
-		}
-
-		const data = getDataEntryById(selectedPointId);
-		data.name = e.target.value;
-
-		renderPointsList();
-	});
-
-	altitudeEl.addEventListener('input', e => {
-		if (selectedPointId < 0) {
-			return;
-		}
-
-		const data = getDataEntryById(selectedPointId);
-		data.altitude = e.target.value;
-	})
 
 	removeMarkerButton.addEventListener('click', () => {
 		if (selectedPointId < 0) {
@@ -170,6 +191,27 @@ function main() {
 		console.log(JSON.stringify(appData));
 	});
 
+	removeAllMarkersButton.addEventListener('click', () => {
+		appData = [];
+
+		for (let i = 0; i < markers.length; i++) {
+			markers[i].marker.remove();
+		}
+
+		markers = [];
+
+		selectPoint(-1);
+	});
+
+	pipeInputToSelectedPointData(nameInputEl, 'name');
+	pipeInputToSelectedPointData(altitudeEl, 'altitude');
+	pipeInputToSelectedPointData(movementSmoothingInputEl, 'movementSmoothing');
+	pipeInputToSelectedPointData(altitudeModeEl, 'altitudeMode');
+	pipeInputToSelectedPointData(maxNumberOfLocationUpdatesEl, 'maxNumberOfLocationUpdates');
+	pipeInputToSelectedPointData(useMovingAverageInputEl, "useMovingAverage", "checked");
+	pipeInputToSelectedPointData(hideObjectUtilItIsPlacedEl, "hideObjectUtilItIsPlaced", "checked");
+
+	selectPoint(-1);
 }
 
 function renderPointsList() {
@@ -180,34 +222,74 @@ function renderPointsList() {
 		const li = document.createElement('li');
 		li._app_index = data.id;
 		li.addEventListener('click', e => selectPoint(e.target._app_index));
-		li.innerText = "{" + data.name + "," + " (" + data.location[0] + ", " + data.location[1] + ")}";
+		li.innerText = JSON.stringify(data); // "{" + data.name + "," + " (" + data.location[0] + ", " + data.location[1] + ")}";
+
+		if (selectedPointId == data.id) {
+			li.style.background = 'red';
+		}
+
 		pointsList.appendChild(li);
 	}
 }
 
+const dataDefault = {
+	name: "",
+	altitude: 0,
+	movementSmoothing: 0.05,
+	altitudeMode: "GroundRelative",
+	location: [0, 0],
+	id: "",
+	maxNumberOfLocationUpdates: 0,
+	useMovingAverage: false,
+	hideObjectUtilItIsPlaced: true
+};
+
+
+
 function selectPoint(id) {
 	if (id < 0) {
 		selectedPointId = -1;
-		nameInputEl.value = "";
-		altitudeEl.value = 0;
+		selectedPointdata = null;
+		
+		altitudeModeEl.value = dataDefault.altitudeMode;
+		nameInputEl.value = dataDefault.name;
+		altitudeEl.value = dataDefault.altitude;
+		movementSmoothingInputEl.value = dataDefault.movementSmoothing;
+		idLabelEl.value = dataDefault.id;
+		maxNumberOfLocationUpdatesEl.value = dataDefault.maxNumberOfLocationUpdates;
+		useMovingAverageInputEl.checked = dataDefault.useMovingAverage;
+		hideObjectUtilItIsPlacedEl.checked = dataDefault.hideObjectUtilItIsPlaced;
+
 		addMarkerButton.disabled = false;
 		removeMarkerButton.disabled = true;
+
 		hideMarker(selectetMarker);
+		renderPointsList();
 	} else {
 		let data = getDataEntryById(id);
 
 		nameInputEl.value = data.name;
 		altitudeEl.value = data.altitude;
+		altitudeModeEl.value = data.altitudeMode;
 		idLabelEl.innerText = data.id;
 		latValueEl.innerText = data.location[0];
 		lngValueEl.innerText = data.location[1];
+		movementSmoothingInputEl.value = data.movementSmoothing;
+		maxNumberOfLocationUpdatesEl.value = data.maxNumberOfLocationUpdates;
+		useMovingAverageInputEl.checked = data.useMovingAverage;
+		hideObjectUtilItIsPlacedEl.checked = data.hideObjectUtilItIsPlaced;
 
 		addMarkerButton.disabled = true;
 		removeMarkerButton.disabled = false;
 		selectedPointId = id;
+		selectedPointdata = data;
 
 		selectetMarker.setLngLat(data.location);
 		unhideMarker(selectetMarker);
+		renderPointsList();
+
+		removeTempMarker();
+
 		window['selectetMarker'] = selectetMarker;
 	}
 }

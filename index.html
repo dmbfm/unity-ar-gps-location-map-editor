@@ -20,10 +20,24 @@
         	<p>ID: <span id="id-value">-</span></p>
         	<p>Lat: <span id="lat-value">0.000</span> </p>
         	<p>Lng: <span id="lng-value">0.000</span> </p>
+            <p>
+                Altitude mode: 
+                <select name="altitude-mode" id="altitude-mode-input">
+                    <option value="GroundRelative">Ground Relative</option>
+                    <option value="Absolute">Absolute</option>
+                    <option value="Relative">Relative</option>
+                    <option value="Ignore">Ignore</option>
+                </select>
+            </p>
         	<p>Altitude: <input type="number" id="altitude-input" value=0> </p>
         	<p> Name: <input id="name-input" type="text"></p>
+            <p>Movement Smoothing: <input type="number" id="movement-smoothing-input" value=0.05 step=0.01> </p>
+            <p>Max Number Of Location Updates: <input type="number" id="max-number-location-updates-input" value=0 step=1></p>
+            <p>Use Moving Average: <input type="checkbox" id="use-moving-average-input"></p>
+            <p>Hide Object Until It Is Placed: <input type="checkbox" id="hide-object-until-placed-input"></p>
         	<button id="add-marker-button">Add marker</button>
         	<button id="remove-marker-button">Remove marker</button>
+            <button id="clear-all-button">Remove all markers</button>
         	<button id="download-json-button">Download JSON</button>
         </div>
 
