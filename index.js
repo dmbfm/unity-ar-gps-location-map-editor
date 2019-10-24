@@ -34,6 +34,7 @@ let markers = [];
 // TODO: Add users/backend.
 // TODO: MeshID Autocomplete.
 // TODO: Button to focus map to selected item.
+// TODO: Add location search bar.
 
 function pipeInputToSelectedPointData(el, propName, targetPropName = 'value') {
 	el.addEventListener('input', e => {
