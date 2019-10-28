@@ -1,52 +1,180 @@
 <!doctype html>
 <html>
-    <head>
-        <meta charset="utf-8">
-        <meta name="description" content="">
-        <meta name="viewport" content="width=device-width, initial-scale=1">
-        <title>Unity AR+GPS Location Map Editor</title>
-        <link rel="stylesheet" href="css/style.css">
+  <head>
+    <meta charset="utf-8">
+    <meta name="description" content="">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Unity AR+GPS Location Map Editor</title>
 
-        <script src='https://api.tiles.mapbox.com/mapbox-gl-js/v1.4.1/mapbox-gl.js'></script>
-		<link href='https://api.tiles.mapbox.com/mapbox-gl-js/v1.4.1/mapbox-gl.css' rel='stylesheet' />
+    
+    <link rel="stylesheet" href="/vendor/spectre.min.css">
+    <script src='https://api.tiles.mapbox.com/mapbox-gl-js/v1.4.1/mapbox-gl.js'></script>
+    <script src="/vendor/xml2json.min.js"></script>
+    <link href='https://api.tiles.mapbox.com/mapbox-gl-js/v1.4.1/mapbox-gl.css' rel='stylesheet' />
 
-    </head>
-    <body>
-        
-        <div id="map-containter"></div>
+    <style>
+      body, html {
+	  margin: 0;
+	  padding: 0;
+	  overflow: hidden;
+	  width: 100%;
+	  height: 100%;
+      }
+      .sidebar {
+	  position: fixed;
+	  width: 550px;
+	  height: 100%;
+      }
 
-        <div id="point-info-form">
-        	<h2>Point</h2>
-        	<p>ID: <span id="id-value">-</span></p>
-        	<p>Lat: <span id="lat-value">0.000</span> </p>
-        	<p>Lng: <span id="lng-value">0.000</span> </p>
-            <p>
-                Altitude mode: 
-                <select name="altitude-mode" id="altitude-mode-input">
-                    <option value="GroundRelative">Ground Relative</option>
-                    <option value="Absolute">Absolute</option>
-                    <option value="Relative">Relative</option>
-                    <option value="Ignore">Ignore</option>
-                </select>
-            </p>
-        	<p>Altitude: <input type="number" id="altitude-input" value=0> </p>
-        	<p> Name: <input id="name-input" type="text"></p>
-            <p> Mesh ID: <input id="mesh-id-input" type="text"s></p>
-            <p>Movement Smoothing: <input type="number" id="movement-smoothing-input" value=0.05 step=0.01> </p>
-            <p>Max Number Of Location Updates: <input type="number" id="max-number-location-updates-input" value=0 step=1></p>
-            <p>Use Moving Average: <input type="checkbox" id="use-moving-average-input"></p>
-            <p>Hide Object Until It Is Placed: <input type="checkbox" id="hide-object-until-placed-input"></p>
-        	<button id="add-marker-button">Add marker</button>
-        	<button id="remove-marker-button">Remove marker</button>
-            <button id="clear-all-button">Remove all markers</button>
-        	<button id="download-json-button">Download JSON</button>
-        </div>
+      .map-container {
+	  height: 100%;
+	  position: relative;
+	  /* left: 400px; */
+	  /* top: 0px; */
+	  width: auto;
+	  margin-left: 550px
+      }
 
-        <div id="points-list-containter">
-        	<ul id="points-list">
-        	</ul>
-        </div>
+      .mt-10 {
+	  margin-top: 20px !important;
+      }
 
-        <script src="index.js"></script>
-    </body>
+      .inactiveLink {
+	  pointer-events: none;
+	  cursor: pointer;
+      }
+
+      .side-scroll {
+	  overflow-x: none;
+	  overflow-y: auto;
+      }
+
+      .pointer { cursor: pointer; }
+    </style>
+
+  </head>
+  <body>
+
+    <div class="sidebar side-scroll bg-gray">
+
+      <div class="menu">
+	<li class="divider" data-content="Current Point"></li>
+	<li class="menu-item">
+	  <span>ID</span>
+	  <div class="menu-badge">
+	    <span id="id-value">---</span>
+	  </div>	    
+	</li>
+	<li class="mt-10 menu-item mt-10">
+	  <span>Latitude</span>
+	  <div class="menu-badge">
+	    <span id="lat-value">0.000</span>
+	  </div>	    
+	</li>
+	<li class="menu-item mt-10">
+	  <span>Longitude</span>
+	  <div class="menu-badge">
+	    <span id="lng-value">0.000</span>
+	  </div>	    
+	</li>
+	<li class="menu-item mt-10">
+	  <span>Altitude mode</span>
+	  <div class="menu-badge">
+	    <select name="altitude-mode" id="altitude-mode-input" class="form-select">
+	      <option value="GroundRelative">Ground Relative</option>
+	      <option value="Absolute">Absolute</option>
+	      <option value="Relative">Relative</option>
+	      <option value="Ignore">Ignore</option>
+	    </select>
+	  </div>	    
+	</li>
+
+	<li class="menu-item mt-10">
+	  <span>Altitude</span>
+	  <div class="menu-badge">
+	    <input type="number" id="altitude-input" class="form-input" value=0>
+	  </div>	    
+	</li>
+
+	<li class="menu-item mt-10">
+	  <span>Name</span>
+	  <div class="menu-badge">
+	    <input id="name-input" type="text" class="form-input">
+	  </div>	    
+	</li>
+
+	<li class="menu-item mt-10">
+	  <span>Mesh ID</span>
+	  <div class="menu-badge">
+	    <input id="mesh-id-input" type="text" class="form-input">
+	  </div>	    
+	</li>
+
+	<li class="menu-item mt-10">
+	  <span>Movement Smoothing</span>
+	  <div class="menu-badge">
+	    <input type="number" id="movement-smoothing-input" class="form-input" value=0.05 step=0.01>
+	  </div>	    
+	</li>
+
+	<li class="menu-item mt-10">
+	  <span>Max Number Of Location Updates</span>
+	  <div class="menu-badge">
+	    <input type="number" id="max-number-location-updates-input" class="form-input" value=0 step=1>
+	  </div>	    
+	</li>
+
+	<li class="menu-item mt-10">
+	  <span>Use Moving Average</span>
+	  <div class="menu-badge">
+	    <label class="form-checkbox">
+	      <input type="checkbox" id="use-moving-average-input">
+	      <i class="form-icon"></i> 
+	    </label>
+	  </div>	    
+	</li>
+
+	<li class="menu-item mt-10">
+	  <span>Hide Object Until It Is Placed</span>
+	  <div class="menu-badge">
+	    <label class="form-checkbox">
+	      <input type="checkbox" id="hide-object-until-placed-input">
+	      <i class="form-icon"></i> 
+	    </label>
+	  </div>	    
+	</li>
+
+	<div class="btn-group btn-group-block mt-10">
+	  <button id="add-marker-button" class="btn btn-sm">Add marker</button>
+	  <button id="remove-marker-button" class="btn btn-sm">Remove marker</button>
+	  <button id="clear-all-button" class="btn btn-sm">Remove all markers</button>
+	</div>
+
+	<div class="btn-group btn-group-block mt-10">
+          <button id="download-json-button" class="btn btn-sm">Download JSON</button>
+          <button id="download-xml-button" class="btn btn-sm">Download XML</button>
+          <button id="upload-json-button" class="btn btn-sm">Upload JSON</button>
+          <button id="upload-xml-button" class="btn btn-sm">Upload XML</button>
+	</div>
+	
+
+	<li class="divider" data-content="List of Points"></li>
+
+	<div id="points-list">
+	  <li class="mt-10 menu-item mt-10 active">
+	    <a href="#" class="active">
+	      <span>Latitude</span>
+	    </a>
+	  </li>
+	</div>
+	
+      </div>
+    </div>
+
+    <div id="map-containter" class="map-container"></div>
+
+  
+
+<script src="index.js"></script>
+</body>
 </html>
