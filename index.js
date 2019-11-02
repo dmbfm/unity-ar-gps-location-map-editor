@@ -14,6 +14,9 @@ let latValueEl;
 let addMarkerButton;
 let removeMarkerButton;
 let downloadJsonButton;
+let downloadXmlButton;
+let uploadJsonButton;
+let uploadXmlButton;
 let dataIdCounter = 0;
 let tempMarker;
 let selectedMarkera;
@@ -91,6 +94,7 @@ function initElements() {
     removeMarkerButton = getElementById("remove-marker-button");
     removeAllMarkersButton = getElementById("clear-all-button");
     downloadJsonButton = getElementById("download-json-button");
+    uploadJsonButton = getElementById("upload-json-button");
     downloadXmlButton = getElementById("download-xml-button");
     removeMarkerButton.disabled = true;
 }
@@ -258,6 +262,64 @@ function addEventListeners() {
 	downloadTextFile(string, "data.json", "text/json");	
     });
 
+    uploadJsonButton.addEventListener("click", () => {
+	console.log("OK");
+	const fileInput = document.getElementById("json-file-input");
+
+	fileInput.click();
+    });
+
+    document.getElementById("json-file-input").addEventListener("change", e => {
+	console.log(e);
+	const reader = new FileReader();
+	reader.onload = e => {
+	    console.log(e.target.result);
+
+	    const jsonData = JSON.parse(e.target.result);
+
+	    console.log(jsonData);
+
+	    appData.splice(0, appData.length);
+	    appData.push(...jsonData);
+
+	    clearAllMarkers();
+	    
+	    let maxId = 0;
+	    for (let i = 0; i < appData.length; i++) {
+
+		let data = appData[i];
+
+	   	let marker = new mapboxgl.Marker({ draggable: true })
+		    .setLngLat({ lat: data.location[0], lng: data.location[1] })
+		    .addTo(map);
+
+
+		let id = data.id;
+		marker.getElement().addEventListener('click', e => {
+		    e.preventDefault();
+		    e.stopPropagation();
+
+		    selectPoint(id);
+		});
+
+		markers.push({
+		    marker,
+		    id
+		});
+
+		if (id > maxId) maxId = id;
+	    }
+
+	    dataIdCounter = maxId + 1;
+	    
+	    renderPointsList();
+	    selectPoint(-1);
+	    hideMarker(tempMarker);
+	};
+	reader.readAsText(e.target.files[0]);
+	e.target.value = null;
+    });
+
     downloadXmlButton.addEventListener('click', () => {
 	
 	let xml = "<ArGpsLocationData>";
@@ -292,13 +354,7 @@ function addEventListeners() {
     removeAllMarkersButton.addEventListener('click', () => {
 	appData = [];
 
-	for (let i = 0; i < markers.length; i++) {
-	    markers[i].marker.remove();
-	}
-
-	markers = [];
-
-	selectPoint(-1);
+	clearAllMarkers();
     });
 
     pipeInputToSelectedPointData(nameInputEl, 'name');
@@ -309,6 +365,16 @@ function addEventListeners() {
     pipeInputToSelectedPointData(maxNumberOfLocationUpdatesEl, 'maxNumberOfLocationUpdates');
     pipeInputToSelectedPointData(useMovingAverageInputEl, "useMovingAverage", "checked");
     pipeInputToSelectedPointData(hideObjectUtilItIsPlacedEl, "hideObjectUtilItIsPlaced", "checked");
+}
+
+function clearAllMarkers() {
+    for (let i = 0; i < markers.length; i++) {
+	markers[i].marker.remove();
+    }
+
+    markers.splice(0, markers.length);
+
+    selectPoint(-1);
 }
 
 function main() {
