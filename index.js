@@ -37,7 +37,6 @@ let markers = [];
 // TODO: Separate into datasets.
 // TODO: Add users/backend.
 // TODO: MeshID Autocomplete.
-// TODO: Button to focus map to selected item.
 // TODO: Add location search bar.
 
 function pipeInputToSelectedPointData(el, propName, targetPropName = 'value') {
@@ -96,6 +95,7 @@ function initElements() {
     downloadJsonButton = getElementById("download-json-button");
     uploadJsonButton = getElementById("upload-json-button");
     downloadXmlButton = getElementById("download-xml-button");
+    uploadXmlButton = getElementById("upload-xml-button");
     removeMarkerButton.disabled = true;
 }
 
@@ -209,6 +209,7 @@ function addEventListeners() {
 	    id
 	});
 
+
 	appData.push({
 	    id,
 	    location: [currentPointLatLng[0], currentPointLatLng[1]],
@@ -277,49 +278,70 @@ function addEventListeners() {
 
 	    const jsonData = JSON.parse(e.target.result);
 
-	    console.log(jsonData);
-
-	    appData.splice(0, appData.length);
-	    appData.push(...jsonData);
-
-	    clearAllMarkers();
-	    
-	    let maxId = 0;
-	    for (let i = 0; i < appData.length; i++) {
-
-		let data = appData[i];
-
-	   	let marker = new mapboxgl.Marker({ draggable: true })
-		    .setLngLat({ lat: data.location[0], lng: data.location[1] })
-		    .addTo(map);
-
-
-		let id = data.id;
-		marker.getElement().addEventListener('click', e => {
-		    e.preventDefault();
-		    e.stopPropagation();
-
-		    selectPoint(id);
-		});
-
-		markers.push({
-		    marker,
-		    id
-		});
-
-		if (id > maxId) maxId = id;
-	    }
-
-	    dataIdCounter = maxId + 1;
-	    
-	    renderPointsList();
-	    selectPoint(-1);
-	    hideMarker(tempMarker);
+	    loadAppData(jsonData);
 	};
+	
 	reader.readAsText(e.target.files[0]);
 	e.target.value = null;
     });
 
+    uploadXmlButton.addEventListener("click", () => {
+	console.log("OK");
+	const fileInput = document.getElementById("xml-file-input");
+
+	fileInput.click();
+    });
+
+    document.getElementById("xml-file-input").addEventListener("change", e => {
+	console.log(e);
+	const reader = new FileReader();
+	reader.onload = e => {
+	    const parser = new DOMParser();
+	    xmlDoc = parser.parseFromString(e.target.result, "text/xml");
+	    console.log(xmlDoc);
+	    window['xmlDoc'] = xmlDoc;
+
+	    const entries = xmlDoc.children[0];
+	    const data = [];
+	    
+	    for (let i = 0; i < entries.childElementCount; i++) {
+		const entryNode = entries.children[i];
+		const dataEntry = {};
+		for (let j = 0; j < entryNode.childElementCount; j++) {
+		    const propNode = entryNode.children[j];
+
+		    let val;
+
+		    if (["id", "maxNumberOfLocationUpdates"].indexOf(propNode.tagName) >= 0) {
+			val = parseInt(propNode.innerHTML);
+		    } else if (["lat", "lng", "altitude", "movementSmoothing"].indexOf(propNode.tagName) >= 0) {
+			val = parseFloat(propNode.innerHTML);
+			
+		    } else if(["hideObjectUtilItIsPlaced", "useMovingAverage"].indexOf(propNode.tagName) >= 0) {
+			val = propNode.innerHTML === "true" ? true : false;
+		    } else {
+			val = propNode.innerHTML;
+		    }
+		    
+		    dataEntry[propNode.tagName] = val;
+
+		    console.log(dataEntry);
+		}
+		dataEntry.location = [dataEntry.lat, dataEntry.lng];
+		delete dataEntry.lat;
+		delete dataEntry.lng;
+		data.push(dataEntry);
+	    }
+
+	    console.log(data);
+	    loadAppData(data);
+	};
+	
+	reader.readAsText(e.target.files[0]);
+	e.target.value = null;
+    });
+
+    
     downloadXmlButton.addEventListener('click', () => {
 	
 	let xml = "<ArGpsLocationData>";
@@ -365,6 +387,56 @@ function addEventListeners() {
     pipeInputToSelectedPointData(maxNumberOfLocationUpdatesEl, 'maxNumberOfLocationUpdates');
     pipeInputToSelectedPointData(useMovingAverageInputEl, "useMovingAverage", "checked");
     pipeInputToSelectedPointData(hideObjectUtilItIsPlacedEl, "hideObjectUtilItIsPlaced", "checked");
+}
+
+function loadAppData(newData) {
+    if (newData === appData) return;
+    
+    appData.splice(0, appData.length);
+    appData.push(...newData);
+
+    clearAllMarkers();
+    
+    let maxId = 0;
+    for (let i = 0; i < appData.length; i++) {
+
+	let data = appData[i];
+
+	let marker = new mapboxgl.Marker({ draggable: true })
+	    .setLngLat({ lat: data.location[0], lng: data.location[1] })
+	    .addTo(map);
+
+
+	let id = data.id;
+	marker.getElement().addEventListener('click', e => {
+	    e.preventDefault();
+	    e.stopPropagation();
+
+	    selectPoint(id);
+	});
+	
+	marker.on('dragend', () => {
+	    let data = getDataEntryById(id);
+	    var lngLat = marker.getLngLat();
+	    data.location = [lngLat.lat, lngLat.lng];
+	    
+	    renderPointsList();
+	});
+
+
+	markers.push({
+	    marker,
+	    id
+	});
+
+	if (id > maxId) maxId = id;
+    }
+
+    dataIdCounter = maxId + 1;
+    
+    renderPointsList();
+    selectPoint(-1);
+    hideMarker(tempMarker);    
 }
 
 function clearAllMarkers() {
@@ -531,11 +603,23 @@ function getMarkerById(id) {
 }
 
 function hideMarker(marker) {
-    marker.getElement().style.visibility = "hidden";
+    if (!marker) return;
+
+    const el = marker.getElement();
+
+    if (!el) return;
+    
+    el.style.visibility = "hidden";
 }
 
 function unhideMarker(marker) {
-    marker.getElement().style.visibility = "visible";
+    if (!marker) return;
+
+    const el = marker.getElement();
+
+    if (!el) return;
+    
+    el.style.visibility = "visible";
 }
 
 function getArrayEntryById(arr, id) {
