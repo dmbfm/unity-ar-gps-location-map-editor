@@ -1,4 +1,4 @@
-let mapZoom = 9;
+let mapZoom = 16;
 let mapCenter = [-74.50, 40];
 let map;
 let currentPointLatLng = [0, 0];
