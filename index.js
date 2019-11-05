@@ -123,6 +123,11 @@ function createMap() {
 	trackUserLocation: false
     }));
 
+    map.addControl(new MapboxGeocoder({
+	accessToken: mapboxgl.accessToken,
+	mapboxgl: mapboxgl
+    }));
+    
     map.on('click', e => {
 	currentPointLatLng = [e.lngLat.lat, e.lngLat.lng];
 	latValueEl.innerText = currentPointLatLng[0];
