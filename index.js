@@ -106,7 +106,7 @@ function createMap() {
 	return;
     }
 
-    mapboxgl.accessToken = 'pk.eyJ1IjoiZG1iZm0iLCJhIjoiY2ozMmQ0aDM1MDAydzJxcG8ydHp5eTF0dSJ9.pIsL_CtN49ntiwm73C1IfA';
+    mapboxgl.accessToken = 'pk.eyJ1IjoiZG1iZm0iLCJhIjoiY2tnc2ZyNjFuMWZwczJybXR5ZjhiaGF2cCJ9.wc3s8JqfVTunyCYSg5oJOA';
     map = new mapboxgl.Map({
 	container: 'map-containter', // container id
 	style: 'mapbox://styles/mapbox/streets-v11', // stylesheet location
